@@ -8,8 +8,8 @@ OAUTH_CREDENTIALS_FILE = "oauth.json"  # Update with actual path to your oauth.j
 
 # OR manually enter your OAuth client credentials here:
 OAUTH_CLIENT_CREDENTIALS = {
-    "client_id": "your-client-id.apps.googleusercontent.com",
-    "client_secret": "your-client-secret",
+    "client_id": "1042497359356-d1sgm12rerfdlc3v1vvsutnnrs2d0him.apps.googleusercontent.com",
+    "client_secret": "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",
     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
     "token_uri": "https://oauth2.googleapis.com/token",
     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
@@ -17,8 +17,8 @@ OAUTH_CLIENT_CREDENTIALS = {
 }
 
 # Google Sheets configuration
-SHEET_ID = "your-google-sheet-id-here"
-SHEET_NAME = "Sheet1"  # Update with your actual sheet name
+SHEET_ID = "1gdjS8gaGFaQs6J09yv7SeiYKy6ZdOLnXoZfIrQQpGoY"
+SHEET_NAME = "Estimates/Inovices Status"  # Update with your actual sheet name
 
 # OAuth scopes required
 SCOPES = [
