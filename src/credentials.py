@@ -3,8 +3,15 @@
 OAuth credentials and configuration for Google Sheets/Drive access
 """
 
+import os
+
+# Get the directory where this script is located (src directory)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Get the parent directory (project root)
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+
 # Path to your oauth.json file - update this path
-OAUTH_CREDENTIALS_FILE = "oauth.json"  # Update with actual path to your oauth.json
+OAUTH_CREDENTIALS_FILE = os.path.join(PROJECT_ROOT, "oauth.json")
 
 # OR manually enter your OAuth client credentials here:
 OAUTH_CLIENT_CREDENTIALS = {
@@ -18,7 +25,7 @@ OAUTH_CLIENT_CREDENTIALS = {
 
 # Google Sheets configuration
 SHEET_ID = "1gdjS8gaGFaQs6J09yv7SeiYKy6ZdOLnXoZfIrQQpGoY"
-SHEET_NAME = "Estimates/Inovices Status"  # Update with your actual sheet name
+SHEET_NAME = "Estimates/Invoices Status"  # Update with your actual sheet name
 
 # OAuth scopes required
 SCOPES = [
@@ -27,7 +34,7 @@ SCOPES = [
 ]
 
 # Token storage file (will be created automatically)
-TOKEN_FILE = "token.json"
+TOKEN_FILE = os.path.join(PROJECT_ROOT, "token.json")
 
 # Subcontractor list
 SUBCONTRACTORS = [

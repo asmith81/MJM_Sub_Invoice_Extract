@@ -15,7 +15,7 @@ import io
 import re
 import os
 import json
-from .credentials import (
+from credentials import (
     OAUTH_CREDENTIALS_FILE, OAUTH_CLIENT_CREDENTIALS, SHEET_ID, 
     SHEET_NAME, SCOPES, TOKEN_FILE
 )

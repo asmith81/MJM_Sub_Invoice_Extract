@@ -10,10 +10,10 @@ import tkinter as tk
 from tkinter import messagebox
 
 # Add src directory to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from src.gui_app import InvoiceApp
+    from gui_app import InvoiceApp
 except ImportError as e:
     print(f"Import error: {e}")
     print("Make sure all required packages are installed:")
@@ -25,12 +25,12 @@ except ImportError as e:
 def check_credentials():
     """Check if credentials are properly configured"""
     try:
-        from src.credentials import OAUTH_CREDENTIALS_FILE, OAUTH_CLIENT_CREDENTIALS, SHEET_ID
+        from credentials import OAUTH_CREDENTIALS_FILE, OAUTH_CLIENT_CREDENTIALS, SHEET_ID
         import os
         
         # Check if oauth.json file exists or manual credentials are set
         oauth_file_exists = os.path.exists(OAUTH_CREDENTIALS_FILE)
-        manual_creds_set = OAUTH_CLIENT_CREDENTIALS.get('client_id', '').startswith('your-') == False
+        manual_creds_set = not OAUTH_CLIENT_CREDENTIALS.get('client_id', '').startswith('your-')
         
         if not oauth_file_exists and not manual_creds_set:
             messagebox.showerror(
@@ -46,7 +46,7 @@ def check_credentials():
             )
             return False
             
-        if SHEET_ID == 'your-google-sheet-id-here':
+        if not SHEET_ID or SHEET_ID.startswith('your-'):
             messagebox.showerror(
                 "Configuration Error",
                 "Please set your Google Sheet ID in src/credentials.py\n\n"

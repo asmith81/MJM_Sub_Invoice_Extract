@@ -8,9 +8,9 @@ from tkinter import ttk, messagebox, filedialog
 import pandas as pd
 from PIL import Image, ImageTk
 import threading
-from .google_client import GoogleClient
-from .data_processor import DataProcessor
-from .credentials import SUBCONTRACTORS
+from google_client import GoogleClient
+from data_processor import DataProcessor
+from credentials import SUBCONTRACTORS
 
 
 class InvoiceApp:

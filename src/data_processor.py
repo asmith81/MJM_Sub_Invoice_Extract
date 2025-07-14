@@ -55,9 +55,15 @@ class DataProcessor:
         
         return table_data
     
-    def generate_pdf(self, display_df, images, subcontractor_name, output_dir="./pdfs"):
+    def generate_pdf(self, display_df, images, subcontractor_name, output_dir=None):
         """Generate PDF with table and images"""
         try:
+            # Set default output directory relative to project root
+            if output_dir is None:
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                project_root = os.path.dirname(script_dir)
+                output_dir = os.path.join(project_root, "pdfs")
+            
             # Create output directory if it doesn't exist
             os.makedirs(output_dir, exist_ok=True)
             
