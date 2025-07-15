@@ -146,6 +146,24 @@ class GoogleClient:
             if df.empty:
                 return pd.DataFrame(columns=['Location', 'Invoice #', 'WO #', 'Total', 'Invoice Link'])
             
+            print(f"DEBUG: Available columns in data: {df.columns.tolist()}")
+            
+            # Check if 'Total' column exists
+            if 'Total' not in df.columns:
+                print("WARNING: 'Total' column not found in data!")
+                # Show what columns contain 'total' (case-insensitive)
+                total_like_columns = [col for col in df.columns if 'total' in col.lower()]
+                print(f"DEBUG: Columns containing 'total': {total_like_columns}")
+            else:
+                print("DEBUG: 'Total' column found successfully")
+                # Show sample values from Total column
+                sample_values = df['Total'].head(5).tolist()
+                print(f"DEBUG: Sample Total values (raw): {sample_values}")
+                
+                # Show data types and detailed info
+                for i, val in enumerate(sample_values):
+                    print(f"DEBUG: Row {i}: value='{val}', type={type(val)}, is_na={pd.isna(val)}")
+            
             display_df = df.copy()
             
             # Process location column
@@ -155,11 +173,41 @@ class GoogleClient:
             display_columns = ['Location', 'Invoice #', 'WO #', 'Total', 'Invoice Link']
             display_df = display_df[display_columns]
             
-            # Convert Total to numeric for calculation
-            display_df['Total'] = pd.to_numeric(display_df['Total'], errors='coerce').fillna(0)
+            # Convert Total to numeric for calculation - improved version
+            print(f"DEBUG: Converting Total column to numeric...")
+            
+            # First, let's see what we're working with before conversion
+            original_values = display_df['Total'].tolist()
+            print(f"DEBUG: Original Total values: {original_values}")
+            
+            # Clean and convert Total values
+            def clean_currency(value):
+                """Clean currency values for numeric conversion"""
+                if pd.isna(value):
+                    return 0
+                
+                # Convert to string
+                str_val = str(value).strip()
+                
+                # Remove common currency symbols and characters
+                cleaned = str_val.replace('$', '').replace(',', '').replace(' ', '')
+                
+                # Handle empty strings
+                if cleaned == '' or cleaned.lower() == 'nan':
+                    return 0
+                
+                try:
+                    return float(cleaned)
+                except ValueError:
+                    print(f"DEBUG: Could not convert '{value}' to number")
+                    return 0
+            
+            display_df['Total'] = display_df['Total'].apply(clean_currency)
+            print(f"DEBUG: Total column after conversion: {display_df['Total'].tolist()}")
             
             return display_df
         except Exception as e:
+            print(f"DEBUG: Error in prepare_display_data: {str(e)}")
             raise Exception(f"Failed to prepare display data: {str(e)}")
     
     def get_image_from_url(self, url):

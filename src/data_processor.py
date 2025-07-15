@@ -160,7 +160,20 @@ class DataProcessor:
     
     def validate_data(self, df):
         """Validate that the DataFrame has required columns"""
+        print(f"DEBUG: Validating data with columns: {df.columns.tolist()}")
+        
         required_columns = ['Location', 'Invoice #', 'WO #', 'Total']
+        
+        # Check each required column individually
+        for col in required_columns:
+            if col in df.columns:
+                print(f"DEBUG: ✓ Found required column: '{col}'")
+            else:
+                print(f"DEBUG: ✗ Missing required column: '{col}'")
+                # Look for similar column names
+                similar_cols = [c for c in df.columns if col.lower() in c.lower()]
+                if similar_cols:
+                    print(f"DEBUG: Similar columns found: {similar_cols}")
         
         # Check for image column (try different possible names)
         image_column_exists = ('Invoice Link' in df.columns or 

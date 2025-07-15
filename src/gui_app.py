@@ -89,7 +89,7 @@ class InvoiceApp:
         table_frame.columnconfigure(0, weight=1)
         table_frame.rowconfigure(0, weight=1)
         
-        self.tree = ttk.Treeview(table_frame, columns=('Location', 'Invoice #', 'WO #', 'Total', 'Invoice Link'), show='headings')
+        self.tree = ttk.Treeview(table_frame, columns=('Location', 'Invoice #', 'WO #', 'Total', 'Invoice Link'), show='headings', selectmode='extended')
         self.tree.heading('Location', text='Location')
         self.tree.heading('Invoice #', text='Invoice #')
         self.tree.heading('WO #', text='WO #')
@@ -109,9 +109,26 @@ class InvoiceApp:
         self.tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
         
+        # Add keyboard shortcuts and context menu for copy functionality
+        self.tree.bind('<Control-c>', self.copy_selected_rows)
+        self.tree.bind('<Control-C>', self.copy_selected_rows)
+        self.tree.bind('<Button-3>', self.show_context_menu)  # Right-click
+        
+        # Create context menu
+        self.context_menu = tk.Menu(self.root, tearoff=0)
+        self.context_menu.add_command(label="Copy Row", command=self.copy_selected_rows)
+        self.context_menu.add_command(label="Copy All", command=self.copy_all_rows)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Copy URL Only", command=self.copy_selected_url)
+        
         # Total label
         self.total_label = ttk.Label(left_frame, text="Total: $0.00", font=('TkDefaultFont', 10, 'bold'))
         self.total_label.grid(row=1, column=0, pady=(5, 0), sticky=tk.W)
+        
+        # Help label for copy functionality
+        help_text = "💡 Tip: Select rows and press Ctrl+C to copy, or right-click for options"
+        self.help_label = ttk.Label(left_frame, text=help_text, font=('TkDefaultFont', 8), foreground='gray')
+        self.help_label.grid(row=2, column=0, pady=(2, 0), sticky=tk.W)
         
         # Right panel - Image display
         right_frame = ttk.LabelFrame(middle_frame, text="Invoice Image", padding="5")
@@ -389,6 +406,115 @@ class InvoiceApp:
         """Restore subcontractor selection after refresh"""
         self.subcontractor_var.set(subcontractor)
         self.on_subcontractor_change()
+    
+    def copy_selected_rows(self, event=None):
+        """Copy selected rows to clipboard"""
+        try:
+            selected_items = self.tree.selection()
+            if not selected_items:
+                return
+            
+            # Get headers
+            headers = ['Location', 'Invoice #', 'WO #', 'Total', 'Invoice Link']
+            
+            # Build clipboard content
+            clipboard_content = []
+            clipboard_content.append('\t'.join(headers))  # Tab-separated headers
+            
+            for item in selected_items:
+                values = self.tree.item(item, 'values')
+                clipboard_content.append('\t'.join(str(v) for v in values))
+            
+            # Copy to clipboard
+            clipboard_text = '\n'.join(clipboard_content)
+            self.root.clipboard_clear()
+            self.root.clipboard_append(clipboard_text)
+            
+            # Show feedback
+            self.update_status(f"Copied {len(selected_items)} row(s) to clipboard", "blue")
+            self.root.after(2000, lambda: self.update_status("Ready", "green"))
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to copy: {str(e)}")
+    
+    def copy_all_rows(self, event=None):
+        """Copy all visible rows to clipboard"""
+        try:
+            if self.display_data is None or self.display_data.empty:
+                messagebox.showinfo("Info", "No data to copy")
+                return
+            
+            # Get headers
+            headers = ['Location', 'Invoice #', 'WO #', 'Total', 'Invoice Link']
+            
+            # Build clipboard content
+            clipboard_content = []
+            clipboard_content.append('\t'.join(headers))  # Tab-separated headers
+            
+            # Add all rows
+            for _, row in self.display_data.iterrows():
+                row_data = [
+                    str(row['Location']),
+                    str(row['Invoice #']),
+                    str(row['WO #']),
+                    self.data_processor.format_currency(row['Total']),
+                    str(row['Invoice Link'])
+                ]
+                clipboard_content.append('\t'.join(row_data))
+            
+            # Copy to clipboard
+            clipboard_text = '\n'.join(clipboard_content)
+            self.root.clipboard_clear()
+            self.root.clipboard_append(clipboard_text)
+            
+            # Show feedback
+            self.update_status(f"Copied all {len(self.display_data)} row(s) to clipboard", "blue")
+            self.root.after(2000, lambda: self.update_status("Ready", "green"))
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to copy all rows: {str(e)}")
+    
+    def copy_selected_url(self, event=None):
+        """Copy selected row's URL to clipboard"""
+        try:
+            selected_items = self.tree.selection()
+            if not selected_items:
+                return
+            
+            # Get the first selected item's URL (last column)
+            item = selected_items[0]
+            values = self.tree.item(item, 'values')
+            
+            if len(values) >= 5:  # Make sure URL column exists
+                url = values[4]  # Invoice Link is the 5th column (index 4)
+                
+                # Copy URL to clipboard
+                self.root.clipboard_clear()
+                self.root.clipboard_append(str(url))
+                
+                # Show feedback
+                self.update_status("URL copied to clipboard", "blue")
+                self.root.after(2000, lambda: self.update_status("Ready", "green"))
+            else:
+                messagebox.showinfo("Info", "No URL found in selected row")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to copy URL: {str(e)}")
+    
+    def show_context_menu(self, event):
+        """Show context menu on right-click"""
+        try:
+            # Select the item under the cursor
+            item = self.tree.identify_row(event.y)
+            if item:
+                self.tree.selection_set(item)
+                self.tree.focus(item)
+            
+            # Show context menu
+            self.context_menu.post(event.x_root, event.y_root)
+            
+        except Exception as e:
+            print(f"Error showing context menu: {str(e)}")
 
 
 def main():
