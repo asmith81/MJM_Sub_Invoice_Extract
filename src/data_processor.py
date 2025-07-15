@@ -37,21 +37,36 @@ class DataProcessor:
         
         # Create table data with headers
         table_data = []
-        headers = ['Location', 'Invoice #', 'WO #', 'Total']
+        headers = ['Location', 'Invoice #', 'WO #', 'Total', 'Invoice Link']
         table_data.append(headers)
         
         # Add data rows
         for _, row in display_df.iterrows():
+            # Create clickable link for Invoice Link
+            from reportlab.platypus import Paragraph
+            from reportlab.lib.styles import getSampleStyleSheet
+            
+            styles = getSampleStyleSheet()
+            invoice_link = row['Invoice Link']
+            
+            # Create a clickable link paragraph
+            if pd.notna(invoice_link) and invoice_link != '':
+                link_text = f'<a href="{invoice_link}">View Invoice</a>'
+                link_paragraph = Paragraph(link_text, styles['Normal'])
+            else:
+                link_paragraph = "No Link"
+            
             table_data.append([
                 str(row['Location']),
                 str(row['Invoice #']),
                 str(row['WO #']),
-                f"${row['Total']:.2f}"
+                f"${row['Total']:.2f}",
+                link_paragraph
             ])
         
         # Add total row
         total_sum = display_df['Total'].sum()
-        table_data.append(['', '', 'TOTAL:', f"${total_sum:.2f}"])
+        table_data.append(['', '', '', 'TOTAL:', f"${total_sum:.2f}"])
         
         return table_data
     
@@ -145,11 +160,21 @@ class DataProcessor:
     
     def validate_data(self, df):
         """Validate that the DataFrame has required columns"""
-        required_columns = ['Location', 'Invoice #', 'WO #', 'Total', 'Picture of Completed Job']
+        required_columns = ['Location', 'Invoice #', 'WO #', 'Total']
+        
+        # Check for image column (try different possible names)
+        image_column_exists = ('Invoice Link' in df.columns or 
+                             'invoice link' in df.columns or 
+                             'Picture of Completed Job' in df.columns)
+        
         missing_columns = [col for col in required_columns if col not in df.columns]
         
         if missing_columns:
             raise Exception(f"Missing required columns: {missing_columns}")
+        
+        # Check specifically for Invoice Link column
+        if 'Invoice Link' not in df.columns:
+            print("Warning: 'Invoice Link' column not found - PDF links will not work")
         
         return True
     
@@ -158,8 +183,21 @@ class DataProcessor:
         if df.empty:
             return []
         
-        urls = df['Picture of Completed Job'].tolist()
-        return [url for url in urls if pd.notna(url) and url != '']
+        # Check if the column exists (try different possible column names)
+        if 'Invoice Link' in df.columns:
+            column_name = 'Invoice Link'
+        elif 'invoice link' in df.columns:
+            column_name = 'invoice link'
+        elif 'Picture of Completed Job' in df.columns:
+            column_name = 'Picture of Completed Job'
+        else:
+            print("Warning: No image link column found ('Invoice Link', 'invoice link', or 'Picture of Completed Job')")
+            return []
+        
+        urls = df[column_name].tolist()
+        filtered_urls = [url for url in urls if pd.notna(url) and url != '']
+        
+        return filtered_urls
     
     def format_currency(self, amount):
         """Format currency for display"""

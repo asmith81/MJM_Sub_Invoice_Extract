@@ -123,7 +123,10 @@ class GoogleClient:
             contractor_mask = df['Name'].str.contains(
                 subcontractor_name.lower(), case=False, na=False
             )
-            return df[contractor_mask].copy()
+            
+            filtered_df = df[contractor_mask].copy()
+            
+            return filtered_df
         except Exception as e:
             raise Exception(f"Failed to filter by subcontractor: {str(e)}")
     
@@ -141,7 +144,7 @@ class GoogleClient:
         """Prepare data for GUI display"""
         try:
             if df.empty:
-                return pd.DataFrame(columns=['Location', 'Invoice #', 'WO #', 'Total'])
+                return pd.DataFrame(columns=['Location', 'Invoice #', 'WO #', 'Total', 'Invoice Link'])
             
             display_df = df.copy()
             
@@ -149,7 +152,7 @@ class GoogleClient:
             display_df['Location'] = display_df['Location'].apply(self.process_location)
             
             # Select and reorder columns for display
-            display_columns = ['Location', 'Invoice #', 'WO #', 'Total']
+            display_columns = ['Location', 'Invoice #', 'WO #', 'Total', 'Invoice Link']
             display_df = display_df[display_columns]
             
             # Convert Total to numeric for calculation
@@ -160,31 +163,68 @@ class GoogleClient:
             raise Exception(f"Failed to prepare display data: {str(e)}")
     
     def get_image_from_url(self, url):
-        """Download and return image from Google Drive URL"""
+        """Download and return image from Google Drive URL using authenticated API"""
         try:
             if pd.isna(url) or url == '':
                 return None
             
-            # Extract file ID from Google Drive URL
-            file_id_match = re.search(r'/d/([a-zA-Z0-9-_]+)', url)
-            if not file_id_match:
+            # Clean up URL (remove leading @ symbol if present)
+            url = str(url).strip()
+            if url.startswith('@'):
+                url = url[1:]
+            
+            # Extract file ID from Google Drive URL - handle multiple formats
+            file_id = None
+            
+            # Format 1: https://drive.google.com/open?id=FILE_ID
+            id_match = re.search(r'[?&]id=([a-zA-Z0-9-_]+)', url)
+            if id_match:
+                file_id = id_match.group(1)
+            else:
+                # Format 2: https://drive.google.com/file/d/FILE_ID/view
+                file_id_match = re.search(r'/d/([a-zA-Z0-9-_]+)', url)
+                if file_id_match:
+                    file_id = file_id_match.group(1)
+            
+            if not file_id:
+                print(f"Could not extract file ID from URL: {url}")
                 return None
             
-            file_id = file_id_match.group(1)
-            
-            # Get downloadable link
-            download_url = f"https://drive.google.com/uc?id={file_id}"
-            
-            # Download image
-            response = requests.get(download_url, timeout=10)
-            response.raise_for_status()
-            
-            # Open and return PIL Image
-            image = Image.open(io.BytesIO(response.content))
-            return image
+            # Use Google Drive API to download the file
+            try:
+                # Get file metadata first to check if it exists and is accessible
+                file_metadata = self.drive_client.files().get(fileId=file_id).execute()
+                
+                # Download the file content
+                request = self.drive_client.files().get_media(fileId=file_id)
+                file_content = io.BytesIO()
+                
+                # Use MediaIoBaseDownload to download the file
+                from googleapiclient.http import MediaIoBaseDownload
+                downloader = MediaIoBaseDownload(file_content, request)
+                
+                done = False
+                while done is False:
+                    status, done = downloader.next_chunk()
+                
+                # Reset file pointer and try to open as image
+                file_content.seek(0)
+                image = Image.open(file_content)
+                return image
+                
+            except Exception as drive_error:
+                print(f"Google Drive API error for file {file_id}: {str(drive_error)}")
+                
+                # If Drive API fails, check if it's a permissions issue
+                if "403" in str(drive_error) or "Forbidden" in str(drive_error):
+                    print("Permission denied - file may not be shared with your account")
+                elif "404" in str(drive_error) or "Not Found" in str(drive_error):
+                    print("File not found - file may have been deleted or moved")
+                
+                return None
             
         except Exception as e:
-            print(f"Error loading image: {str(e)}")
+            print(f"Error loading image from URL '{url}': {str(e)}")
             return None
     
     def calculate_total_sum(self, df):

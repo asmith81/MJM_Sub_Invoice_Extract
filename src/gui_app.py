@@ -89,17 +89,19 @@ class InvoiceApp:
         table_frame.columnconfigure(0, weight=1)
         table_frame.rowconfigure(0, weight=1)
         
-        self.tree = ttk.Treeview(table_frame, columns=('Location', 'Invoice #', 'WO #', 'Total'), show='headings')
+        self.tree = ttk.Treeview(table_frame, columns=('Location', 'Invoice #', 'WO #', 'Total', 'Invoice Link'), show='headings')
         self.tree.heading('Location', text='Location')
         self.tree.heading('Invoice #', text='Invoice #')
         self.tree.heading('WO #', text='WO #')
         self.tree.heading('Total', text='Total')
+        self.tree.heading('Invoice Link', text='Invoice Link')
         
         # Configure column widths
         self.tree.column('Location', width=200)
         self.tree.column('Invoice #', width=100)
         self.tree.column('WO #', width=100)
         self.tree.column('Total', width=100)
+        self.tree.column('Invoice Link', width=300)
         
         scrollbar = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
@@ -215,6 +217,7 @@ class InvoiceApp:
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to filter data: {str(e)}")
+            print(f"DEBUG: Exception in on_subcontractor_change: {str(e)}")
     
     def update_table(self):
         """Update the table display"""
@@ -232,7 +235,8 @@ class InvoiceApp:
                 row['Location'],
                 row['Invoice #'],
                 row['WO #'],
-                self.data_processor.format_currency(row['Total'])
+                self.data_processor.format_currency(row['Total']),
+                row['Invoice Link'] # Added Invoice Link
             ))
         
         # Update total
@@ -250,7 +254,7 @@ class InvoiceApp:
                 
                 # Load images
                 self.current_images = []
-                for url in image_urls:
+                for i, url in enumerate(image_urls):
                     image = self.google_client.get_image_from_url(url)
                     self.current_images.append(image)
                 
@@ -264,6 +268,7 @@ class InvoiceApp:
             except Exception as e:
                 self.stop_loading()
                 messagebox.showerror("Error", f"Failed to load images: {str(e)}")
+                print(f"DEBUG: GUI - Exception in load_images: {str(e)}")
         
         thread = threading.Thread(target=load_worker)
         thread.daemon = True
