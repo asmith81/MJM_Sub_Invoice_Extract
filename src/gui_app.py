@@ -358,22 +358,30 @@ class InvoiceApp:
             messagebox.showwarning("Warning", "Please select a subcontractor")
             return
         
-        try:
-            self.start_loading()
-            
-            # Generate PDF
-            filepath = self.data_processor.generate_pdf(
-                self.display_data,
-                self.current_images,
-                self.selected_subcontractor
-            )
-            
-            self.stop_loading()
-            messagebox.showinfo("Success", f"PDF generated successfully:\n{filepath}")
-            
-        except Exception as e:
-            self.stop_loading()
-            messagebox.showerror("Error", f"Failed to generate PDF: {str(e)}")
+        def pdf_worker():
+            try:
+                self.start_loading()
+                
+                # Generate PDF
+                filepath = self.data_processor.generate_pdf(
+                    self.display_data,
+                    self.current_images,
+                    self.selected_subcontractor
+                )
+                
+                self.stop_loading()
+                
+                # Show success message on main thread
+                self.root.after(0, lambda: messagebox.showinfo("Success", f"PDF generated successfully:\n{filepath}"))
+                
+            except Exception as e:
+                self.stop_loading()
+                # Show error message on main thread
+                self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to generate PDF: {str(e)}"))
+        
+        thread = threading.Thread(target=pdf_worker)
+        thread.daemon = True
+        thread.start()
     
     def refresh_data(self):
         """Refresh all data from Google Sheets"""

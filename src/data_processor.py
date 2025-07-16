@@ -70,6 +70,72 @@ class DataProcessor:
         
         return table_data
     
+    def optimize_image_for_pdf(self, image, max_width=800, max_height=1000):
+        """Optimize image for PDF generation with orientation handling"""
+        try:
+            if image is None:
+                return None
+            
+            # Handle EXIF orientation if present
+            try:
+                from PIL.ExifTags import ORIENTATION
+                exif = image._getexif()
+                if exif is not None:
+                    orientation = exif.get(0x0112)
+                    if orientation == 3:
+                        image = image.rotate(180, expand=True)
+                    elif orientation == 6:
+                        image = image.rotate(270, expand=True)
+                    elif orientation == 8:
+                        image = image.rotate(90, expand=True)
+            except (AttributeError, TypeError, ImportError):
+                # No EXIF data, old PIL version, or missing ExifTags
+                pass
+            
+            # Convert to RGB if not already (handles RGBA, grayscale, etc.)
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+            
+            # Get original dimensions
+            original_width, original_height = image.size
+            
+            # Check if image is landscape (wider than tall)
+            is_landscape = original_width > original_height
+            
+            # For landscape images, we might want to rotate them if they're invoice documents
+            # This is a heuristic - you might want to adjust based on your specific images
+            if is_landscape and original_width > original_height * 1.5:  # Very wide landscape
+                # Optionally rotate landscape images to portrait for better PDF fit
+                # Uncomment the next line if you want to auto-rotate wide landscape images
+                # image = image.rotate(90, expand=True)
+                pass
+            
+            # Optimize image size to reduce memory usage
+            # Calculate scaling factor to fit within max dimensions
+            scale_width = max_width / image.width
+            scale_height = max_height / image.height
+            scale = min(scale_width, scale_height, 1.0)  # Don't upscale
+            
+            if scale < 1.0:
+                new_width = int(image.width * scale)
+                new_height = int(image.height * scale)
+                image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Optimize quality for PDF (reduce file size)
+            if image.width > 600 or image.height > 800:
+                # Further resize very large images
+                scale_factor = min(600 / image.width, 800 / image.height)
+                if scale_factor < 1.0:
+                    new_width = int(image.width * scale_factor)
+                    new_height = int(image.height * scale_factor)
+                    image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            return image
+            
+        except Exception as e:
+            print(f"Error optimizing image: {str(e)}")
+            return image  # Return original if optimization fails
+    
     def generate_pdf(self, display_df, images, subcontractor_name, output_dir=None):
         """Generate PDF with table and images"""
         try:
@@ -123,39 +189,65 @@ class DataProcessor:
                 table.setStyle(table_style)
                 story.append(table)
             
-            # Add images on separate pages
+            # Process and add images
+            print(f"Processing {len(images)} images for PDF...")
+            
             for i, image in enumerate(images):
                 if image is not None:
-                    story.append(Spacer(1, 12))
-                    
-                    # Convert PIL Image to ReportLab Image
-                    img_buffer = io.BytesIO()
-                    image.save(img_buffer, format='PNG')
-                    img_buffer.seek(0)
-                    
-                    # Calculate image size to fit page
-                    img_width, img_height = image.size
-                    max_width = 7 * inch
-                    max_height = 9 * inch
-                    
-                    # Scale image to fit
-                    scale_width = max_width / img_width
-                    scale_height = max_height / img_height
-                    scale = min(scale_width, scale_height)
-                    
-                    final_width = img_width * scale
-                    final_height = img_height * scale
-                    
-                    # Add image to story
-                    rl_image = RLImage(img_buffer, width=final_width, height=final_height)
-                    story.append(rl_image)
+                    try:
+                        print(f"Processing image {i+1}/{len(images)}")
+                        
+                        # Optimize image for PDF
+                        optimized_image = self.optimize_image_for_pdf(image)
+                        
+                        if optimized_image is None:
+                            print(f"Skipping image {i+1} - optimization failed")
+                            continue
+                        
+                        # Add page break before image
+                        story.append(Spacer(1, 12))
+                        
+                        # Convert PIL Image to ReportLab Image
+                        img_buffer = io.BytesIO()
+                        optimized_image.save(img_buffer, format='PNG', optimize=True)
+                        img_buffer.seek(0)
+                        
+                        # Calculate image size to fit page
+                        img_width, img_height = optimized_image.size
+                        max_width = 7 * inch
+                        max_height = 9 * inch
+                        
+                        # Scale image to fit page
+                        scale_width = max_width / img_width
+                        scale_height = max_height / img_height
+                        scale = min(scale_width, scale_height)
+                        
+                        final_width = img_width * scale
+                        final_height = img_height * scale
+                        
+                        # Add image to story
+                        rl_image = RLImage(img_buffer, width=final_width, height=final_height)
+                        story.append(rl_image)
+                        
+                        # Clean up buffer
+                        img_buffer.close()
+                        
+                    except Exception as img_error:
+                        print(f"Error processing image {i+1}: {str(img_error)}")
+                        # Continue with other images instead of failing completely
+                        continue
+                else:
+                    print(f"Skipping image {i+1} - image is None")
             
             # Build PDF
+            print("Building PDF...")
             doc.build(story)
+            print(f"PDF generated successfully: {filepath}")
             
             return filepath
             
         except Exception as e:
+            print(f"Error generating PDF: {str(e)}")
             raise Exception(f"Failed to generate PDF: {str(e)}")
     
     def validate_data(self, df):
