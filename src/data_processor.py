@@ -192,6 +192,9 @@ class DataProcessor:
             # Process and add images
             print(f"Processing {len(images)} images for PDF...")
             
+            # Keep track of buffers to close after PDF is built
+            img_buffers = []
+            
             for i, image in enumerate(images):
                 if image is not None:
                     try:
@@ -212,6 +215,9 @@ class DataProcessor:
                         optimized_image.save(img_buffer, format='PNG', optimize=True)
                         img_buffer.seek(0)
                         
+                        # Keep buffer reference for later cleanup
+                        img_buffers.append(img_buffer)
+                        
                         # Calculate image size to fit page
                         img_width, img_height = optimized_image.size
                         max_width = 7 * inch
@@ -229,9 +235,6 @@ class DataProcessor:
                         rl_image = RLImage(img_buffer, width=final_width, height=final_height)
                         story.append(rl_image)
                         
-                        # Clean up buffer
-                        img_buffer.close()
-                        
                     except Exception as img_error:
                         print(f"Error processing image {i+1}: {str(img_error)}")
                         # Continue with other images instead of failing completely
@@ -243,6 +246,13 @@ class DataProcessor:
             print("Building PDF...")
             doc.build(story)
             print(f"PDF generated successfully: {filepath}")
+            
+            # Now close all the image buffers
+            for img_buffer in img_buffers:
+                try:
+                    img_buffer.close()
+                except:
+                    pass  # Ignore errors when closing buffers
             
             return filepath
             

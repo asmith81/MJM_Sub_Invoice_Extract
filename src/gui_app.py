@@ -376,8 +376,10 @@ class InvoiceApp:
                 
             except Exception as e:
                 self.stop_loading()
+                # Capture the error message before the lambda
+                error_msg = str(e)
                 # Show error message on main thread
-                self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to generate PDF: {str(e)}"))
+                self.root.after(0, lambda: messagebox.showerror("Error", f"Failed to generate PDF: {error_msg}"))
         
         thread = threading.Thread(target=pdf_worker)
         thread.daemon = True
