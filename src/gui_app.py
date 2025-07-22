@@ -8,6 +8,7 @@ from tkinter import ttk, messagebox, filedialog
 import pandas as pd
 from PIL import Image, ImageTk
 import threading
+import sys
 from google_client import GoogleClient
 from data_processor import DataProcessor
 from credentials import SUBCONTRACTORS
@@ -18,6 +19,9 @@ class InvoiceApp:
         self.root = root
         self.root.title("Invoice Processing Tool")
         self.root.geometry("1200x800")
+        
+        # Platform detection for cross-platform compatibility
+        self.is_mac = sys.platform == "darwin"
         
         # Initialize components
         self.google_client = GoogleClient()
@@ -36,6 +40,38 @@ class InvoiceApp:
         
         # Load initial data
         self.load_data()
+    
+    def get_copy_shortcut_text(self):
+        """Get platform-appropriate copy shortcut text for display"""
+        return "⌘C" if self.is_mac else "Ctrl+C"
+    
+    def get_copy_accelerator(self):
+        """Get platform-appropriate accelerator string for menus"""
+        return "Cmd+C" if self.is_mac else "Ctrl+C"
+    
+    def setup_copy_bindings(self):
+        """Set up cross-platform keyboard and mouse bindings for copy functionality"""
+        # Keyboard shortcuts for copy - bind multiple combinations for maximum compatibility
+        copy_shortcuts = ['<Control-c>', '<Control-C>']  # Windows/Linux
+        
+        if self.is_mac:
+            # Add Mac-specific shortcuts
+            copy_shortcuts.extend(['<Command-c>', '<Command-C>', '<Meta-c>', '<Meta-C>'])
+        
+        # Bind all copy shortcuts
+        for shortcut in copy_shortcuts:
+            self.tree.bind(shortcut, self.copy_selected_rows)
+        
+        # Right-click context menu - bind multiple mouse events for compatibility
+        right_click_events = ['<Button-3>']  # Standard right-click
+        
+        if self.is_mac:
+            # Add traditional Mac right-click (Ctrl+Click)
+            right_click_events.append('<Control-Button-1>')
+        
+        # Bind all right-click events
+        for event in right_click_events:
+            self.tree.bind(event, self.show_context_menu)
     
     def setup_gui(self):
         """Set up the GUI layout"""
@@ -109,14 +145,16 @@ class InvoiceApp:
         self.tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
         
-        # Add keyboard shortcuts and context menu for copy functionality
-        self.tree.bind('<Control-c>', self.copy_selected_rows)
-        self.tree.bind('<Control-C>', self.copy_selected_rows)
-        self.tree.bind('<Button-3>', self.show_context_menu)  # Right-click
+        # Add cross-platform keyboard shortcuts and context menu for copy functionality
+        self.setup_copy_bindings()
         
-        # Create context menu
+        # Create context menu with platform-appropriate accelerators
         self.context_menu = tk.Menu(self.root, tearoff=0)
-        self.context_menu.add_command(label="Copy Row", command=self.copy_selected_rows)
+        self.context_menu.add_command(
+            label="Copy Row", 
+            command=self.copy_selected_rows,
+            accelerator=self.get_copy_accelerator()
+        )
         self.context_menu.add_command(label="Copy All", command=self.copy_all_rows)
         self.context_menu.add_separator()
         self.context_menu.add_command(label="Copy URL Only", command=self.copy_selected_url)
@@ -125,8 +163,8 @@ class InvoiceApp:
         self.total_label = ttk.Label(left_frame, text="Total: $0.00", font=('TkDefaultFont', 10, 'bold'))
         self.total_label.grid(row=1, column=0, pady=(5, 0), sticky=tk.W)
         
-        # Help label for copy functionality
-        help_text = "💡 Tip: Select rows and press Ctrl+C to copy, or right-click for options"
+        # Help label for copy functionality with platform-appropriate shortcut
+        help_text = f"💡 Tip: Select rows and press {self.get_copy_shortcut_text()} to copy, or right-click for options"
         self.help_label = ttk.Label(left_frame, text=help_text, font=('TkDefaultFont', 8), foreground='gray')
         self.help_label.grid(row=2, column=0, pady=(2, 0), sticky=tk.W)
         
